@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS AI IoT</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Orbitron',sans-serif;
+}
+
+body{
+background:#020b16;
+color:#00e5ff;
+height:100vh;
+overflow:hidden;
+background-image:
+linear-gradient(rgba(0,255,255,0.08) 1px, transparent 1px),
+linear-gradient(90deg, rgba(0,255,255,0.08) 1px, transparent 1px);
+background-size:40px 40px;
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+.container{
+width:1000px;
+height:92vh;
+border:1px solid #00e5ff;
+background:#03111f;
+box-shadow:0 0 30px rgba(0,229,255,0.3);
+border-radius:10px;
+padding:20px;
+display:flex;
+flex-direction:column;
+}
+.header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px;
+border:1px solid #00e5ff;
+margin-bottom:20px;
+}
+
+.logo{
+font-size:38px;
+letter-spacing:8px;
+font-weight:bold;
+}
+
+.status{
+font-size:14px;
+color:#7fffd4;
+}
+
+.buttons{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:12px;
+margin-bottom:20px;
+}
+
+.btn{
+background:#071d30;
+border:1px solid #00e5ff;
+color:#00e5ff;
+padding:15px;
+font-size:14px;
+cursor:pointer;
+border-radius:6px;
+transition:0.3s;
+}
+.btn:hover{
+background:#00e5ff;
+color:#000;
+box-shadow:0 0 20px #00e5ff;
+}
+
+.chatbox{
+flex:1;
+border:1px solid #00e5ff;
+padding:15px;
+overflow-y:auto;
+background:#010914;
+}
+
+.message{
+margin:12px 0;
+padding:14px;
+max-width:70%;
+border-radius:10px;
+line-height:1.5;
+}
+
+.user{
+background:#3a170f;
+margin-left:auto;
+color:#ffb199;
+}
+
+.bot{
+background:#071d30;
+color:#dffcff;
+}
+
+.input-area{
+display:flex;
+gap:10px;
+margin-top:15px;
+}
+input{
+flex:1;
+padding:15px;
+background:#02101d;
+border:1px solid #00e5ff;
+color:#fff;
+font-size:16px;
+outline:none;
+}
+
+.send{
+padding:15px 30px;
+background:#00e676;
+border:none;
+font-weight:bold;
+cursor:pointer;
+font-size:16px;
+}
+
+.send:hover{
+opacity:0.85;
+}
+
+.title{
+font-weight:bold;
+margin-bottom:6px;
+color:#00e5ff;
+}
+
+@media(max-width:900px){
+.buttons{
+ grid-template-columns:repeat(2,1fr);
+}
+
+.container{
+ width:95%;
+}
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="header">
+<div class="logo">NEXUS</div>
+<div class="status">🟢 ESP32 CONNECTED</div>
+</div>
+
+<div class="buttons">
+<button class="btn" onclick="sendQuick('light on')">💡 LIGHT ON</button>
+<button class="btn" onclick="sendQuick('light off')">🌑 LIGHT OFF</button>
+<button class="btn" onclick="sendQuick('rgb red')">🔴 RGB RED</button>
+<button class="btn" onclick="sendQuick('rgb blue')">🔵 RGB BLUE</button>
+<button class="btn" onclick="sendQuick('rgb off')">⚫ RGB OFF</button>
+<button class="btn" onclick="sendQuick('temperature')">🌡️ TEMP</button>
+<button class="btn" onclick="sendQuick('ldr')">☀️ LDR</button>
+<button class="btn" onclick="sendQuick('melody')">🎵 MELODY</button>
+<button class="btn" onclick="sendQuick('relay on')">⚡ RELAY ON</button>
+<button class="btn" onclick="sendQuick('relay off')">⭕ RELAY OFF</button>
+<button class="btn" onclick="sendQuick('buzzer on')">🚨 BUZZER ON</button>
+<button class="btn" onclick="sendQuick('buzzer off')">🔕 BUZZER OFF</button>
+<button class="btn" onclick="sendQuick('smart mode')">🤖 SMART MODE</button>
+</div>
+
+<div class="chatbox" id="chatbox">
+<div class="message bot">
+<div class="title">NEXUS AI</div>
+System initialized successfully 🚀<br>
+Type natural commands like:<br>
+• turn on the light<br>
+• play music<br>
+• rgb red<br>
+• buzzer on
+</div>
+</div>
+
+<div class="input-area">
+<input type="text" id="message" placeholder="Speak naturally — 'turn on the light'">
+<button class="send" onclick="sendMessage()">SEND →</button>
+</div>
+
+</div>
+<script>
+const chatbox = document.getElementById("chatbox");
+
+function addMessage(text, type, title=""){
+    const div = document.createElement("div");
+    div.className = `message ${type}`;
+
+    div.innerHTML = `<div class='title'>${title}</div>${text}`;
+
+    chatbox.appendChild(div);
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+async function sendMessage(){
+    const input = document.getElementById("message");
+    const text = input.value;
+
+    if(text.trim()==="") return;
+
+    addMessage(text,"user","YOU");
+
+    input.value="";
+
+    try{
+        const response = await fetch('/chat',{
+            method:'POST',
+            headers:{
+                'Content-Type':'application/json'
+            },
+            body:JSON.stringify({message:text})
+        });
+
+        const data = await response.json();
+
+        addMessage(data.message,"bot",data.title);
+
+    }catch(err){
+        addMessage("Network error — could not reach server.","bot","⚠️ ERROR");
+    }
+}
+function sendQuick(command){
+    document.getElementById("message").value = command;
+    sendMessage();
+}
+
+// ENTER KEY
+const input = document.getElementById("message");
+input.addEventListener("keypress", function(e){
+    if(e.key === "Enter"){
+        sendMessage();
+    }
+});
+</script>
+
+</body>
+</html>

@@ -3,10 +3,8 @@ from flask import request, jsonify
 
 import requests
 import random
-import re
 
 from sentence_transformers import SentenceTransformer
-
 from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
@@ -94,7 +92,8 @@ intent_examples = {
         "red light",
         "make room red",
         "red ambience",
-        "red mood"
+        "rgb red",
+        "turn on red"
     ],
 
     "rgb_blue": [
@@ -102,13 +101,14 @@ intent_examples = {
         "blue light",
         "make room blue",
         "blue ambience",
-        "cool blue"
+        "rgb blue"
     ],
 
     "rgb_green": [
 
         "green light",
-        "make room green"
+        "make room green",
+        "rgb green"
     ],
 
     "rgb_off": [
@@ -116,7 +116,10 @@ intent_examples = {
         "turn off rgb",
         "disable rgb",
         "rgb off",
-        "remove ambient lights"
+        "remove ambient lights",
+        "turn off red",
+        "turn off blue",
+        "turn off green"
     ],
 
     "buzzer_on": [
@@ -126,7 +129,8 @@ intent_examples = {
         "activate buzzer",
         "danger alert",
         "wake me up",
-        "start alarm"
+        "start alarm",
+        "buzzer on"
     ],
 
     "buzzer_off": [
@@ -134,7 +138,8 @@ intent_examples = {
         "turn off alarm",
         "disable buzzer",
         "stop alert",
-        "alarm off"
+        "alarm off",
+        "buzzer off"
     ],
 
     "smart_mode_on": [
@@ -149,6 +154,7 @@ intent_examples = {
 
         "disable smart mode",
         "turn off smart mode",
+        "smart mode off",
         "stop smart lighting"
     ],
 
@@ -160,11 +166,19 @@ intent_examples = {
         "room temperature"
     ],
 
+    "humidity": [
+
+        "humidity",
+        "room humidity",
+        "air humidity"
+    ],
+
     "ldr": [
 
         "ldr value",
         "light level",
-        "brightness level"
+        "brightness level",
+        "ldr"
     ]
 }
 
@@ -271,6 +285,7 @@ FUNCTIONS = {
     "smart_mode_off": "smartmodeoff",
 
     "temperature": "temperature",
+    "humidity": "humidity",
 
     "ldr": "ldr"
 }
@@ -287,7 +302,6 @@ for intent, examples in intent_examples.items():
     for sentence in examples:
 
         all_sentences.append(sentence)
-
         all_intents.append(intent)
 
 sentence_embeddings = model.encode(
@@ -295,7 +309,7 @@ sentence_embeddings = model.encode(
 )
 
 # =========================================
-# TEXT CLEANER
+# CLEAN TEXT
 # =========================================
 
 def clean_text(text):
@@ -308,7 +322,8 @@ def clean_text(text):
         "trun": "turn",
         "ligth": "light",
         "alaram": "alarm",
-        "musci": "music"
+        "musci": "music",
+        "part mode": "party mode"
     }
 
     for wrong, correct in fixes.items():
@@ -321,23 +336,29 @@ def clean_text(text):
     return text
 
 # =========================================
-# SEND COMMAND
+# SEND COMMAND TO ESP32
 # =========================================
 
 def send_command(command):
 
     try:
 
+        url = f"{ESP32_IP}/{command}"
+
+        print("REQUEST:", url)
+
         response = requests.get(
-
-            f"{ESP32_IP}/{command}",
-
-            timeout=5
+            url,
+            timeout=8
         )
 
-        return response.text
+        print("ESP32 RESPONSE:", response.text)
 
-    except:
+        return response.text.strip()
+
+    except Exception as e:
+
+        print("ESP32 ERROR:", e)
 
         return None
 
@@ -365,23 +386,33 @@ def detect_intent(user_message):
 
         return "disco_mode"
 
-    # RGB COLORS
+    # RGB OFF
+
+    if any(x in msg for x in [
+
+        "rgb off",
+        "turn off rgb",
+        "disable rgb",
+        "turn off red",
+        "turn off blue",
+        "turn off green"
+    ]):
+
+        return "rgb_off"
+
+    # RGB RED
 
     if "red" in msg:
 
-        if "off" in msg:
-
-            return "rgb_off"
-
         return "rgb_red"
+
+    # RGB BLUE
 
     if "blue" in msg:
 
-        if "off" in msg:
-
-            return "rgb_off"
-
         return "rgb_blue"
+
+    # RGB GREEN
 
     if "green" in msg:
 
@@ -397,7 +428,7 @@ def detect_intent(user_message):
 
         return "smart_mode_on"
 
-    # ALARM
+    # BUZZER
 
     if any(x in msg for x in [
 
@@ -433,8 +464,7 @@ def detect_intent(user_message):
             "dark",
             "sleep",
             "night",
-            "dim",
-            "dull"
+            "dim"
         ]):
 
             return "light_off"
@@ -460,6 +490,12 @@ def detect_intent(user_message):
 
         return "temperature"
 
+    # HUMIDITY
+
+    if "humidity" in msg:
+
+        return "humidity"
+
     # LDR
 
     if "ldr" in msg:
@@ -467,7 +503,7 @@ def detect_intent(user_message):
         return "ldr"
 
     # =====================================
-    # AI SEMANTIC FALLBACK
+    # AI SEMANTIC SEARCH
     # =====================================
 
     user_embedding = model.encode([msg])
@@ -475,7 +511,6 @@ def detect_intent(user_message):
     similarities = cosine_similarity(
 
         user_embedding,
-
         sentence_embeddings
     )
 
@@ -485,8 +520,7 @@ def detect_intent(user_message):
 
     detected_intent = all_intents[best_index]
 
-    print("\nCONFIDENCE:", confidence)
-
+    print("CONFIDENCE:", confidence)
     print("INTENT:", detected_intent)
 
     if confidence < 0.55:
@@ -507,10 +541,7 @@ def generate_response(intent):
             responses[intent]
         )
 
-    return (
-        "Sorry, I could not "
-        "understand that."
-    )
+    return "Sorry, I could not understand that."
 
 # =========================================
 # HOME
@@ -540,7 +571,7 @@ def chat():
         user_message
     )
 
-    print("INTENT:", intent)
+    print("FINAL INTENT:", intent)
 
     if intent == "unknown":
 
@@ -557,44 +588,75 @@ def chat():
     result = send_command(command)
 
     # =====================================
-    # SENSOR RESPONSES
+    # DEVICE OFFLINE
+    # =====================================
+
+    if result is None:
+
+        return jsonify({
+
+            "title": "NEXUS AI",
+
+            "message":
+            "ESP32 is not responding."
+        })
+
+    # =====================================
+    # TEMPERATURE
     # =====================================
 
     if intent == "temperature":
 
-        if result is None:
+        try:
+
+            temp = float(result)
 
             reply = (
-                "ESP32 is not responding."
+                f"Current temperature is "
+                f"{temp:.1f}°C 🌡️"
             )
 
-        elif result == "TEMP_ERROR":
+        except:
 
             reply = (
                 "Temperature sensor error."
             )
 
-        else:
+    # =====================================
+    # HUMIDITY
+    # =====================================
+
+    elif intent == "humidity":
+
+        try:
+
+            humidity = float(result)
 
             reply = (
-                f"Current temperature "
-                f"is {result}°C 🌡️"
+                f"Current humidity is "
+                f"{humidity:.1f}% 💧"
             )
+
+        except:
+
+            reply = (
+                "Humidity sensor error."
+            )
+
+    # =====================================
+    # LDR
+    # =====================================
 
     elif intent == "ldr":
 
-        if result is None:
+        reply = (
+            f"Current LDR value "
+            f"is {result} ☀️"
+        )
 
-            reply = (
-                "ESP32 is not responding."
-            )
-
-        else:
-
-            reply = (
-                f"Current LDR value "
-                f"is {result} ☀️"
-            )
+    # =====================================
+    # NORMAL RESPONSES
+    # =====================================
 
     else:
 
@@ -608,9 +670,16 @@ def chat():
     })
 
 # =========================================
-# RUN APP
+# MAIN
 # =========================================
 
 if __name__ == "__main__":
 
-    app.run(debug=True)
+    print("\nNEXUS AI")
+    print("System initialized successfully 🚀")
+
+    app.run(
+        debug=True,
+        host="0.0.0.0",
+        port=5000
+    )

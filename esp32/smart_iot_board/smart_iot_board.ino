@@ -1,23 +1,46 @@
 #include <WiFi.h>
 #include <WebServer.h>
-#include <DHT.h>
 #include <Adafruit_NeoPixel.h>
+#include <math.h>
 
-const char* ssid = "vivoT2x5G";
-const char* password = "prema123";
+// ======================================================
+// WIFI CONFIG
+// ======================================================
+
+const char* ssid = "YOUR_WIFI";
+const char* password = "PASSWORD";
+
+// ======================================================
+// WEB SERVER
+// ======================================================
 
 WebServer server(80);
 
-#define LED_PIN       2
-#define BUZZER_PIN    14
-#define RELAY_PIN     13
-#define RGB_PIN       4
-#define DHT_PIN       32
-#define LDR_PIN       36
+// ======================================================
+// SST IOT DEVELOPMENT BOARD PINS
+// ======================================================
 
-#define DHTTYPE DHT11
+// ONBOARD LED
+#define LED_PIN 2
 
-DHT dht(DHT_PIN, DHTTYPE);
+// BUZZER
+#define BUZZER_PIN 14
+
+// RELAY
+#define RELAY_PIN 13
+
+// RGB LED
+#define RGB_PIN 4
+
+// LDR SENSOR
+#define LDR_PIN 36
+
+// THERMISTOR SENSOR
+#define THERMISTOR_PIN 39
+
+// ======================================================
+// RGB CONFIG
+// ======================================================
 
 Adafruit_NeoPixel rgb(
   1,
@@ -25,7 +48,15 @@ Adafruit_NeoPixel rgb(
   NEO_GRB + NEO_KHZ800
 );
 
+// ======================================================
+// VARIABLES
+// ======================================================
+
 bool smartMode = false;
+
+// ======================================================
+// RGB FUNCTION
+// ======================================================
 
 void setRGB(int r, int g, int b) {
 
@@ -36,6 +67,59 @@ void setRGB(int r, int g, int b) {
 
   rgb.show();
 }
+
+// ======================================================
+// THERMISTOR TEMPERATURE FUNCTION
+// ======================================================
+
+float readTemperature() {
+
+  int adcValue = analogRead(THERMISTOR_PIN);
+
+  Serial.print("ADC Value: ");
+  Serial.println(adcValue);
+
+  // Avoid invalid ADC values
+  if (adcValue <= 0 || adcValue >= 4095) {
+    return 0;
+  }
+
+  // Thermistor Constants
+  const float SERIES_RESISTOR = 10000.0;
+  const float NOMINAL_RESISTANCE = 10000.0;
+  const float NOMINAL_TEMPERATURE = 25.0;
+  const float B_COEFFICIENT = 3950.0;
+
+  // Calculate resistance
+  float resistance =
+    SERIES_RESISTOR *
+    ((4095.0 / adcValue) - 1.0);
+
+  // Steinhart-Hart Equation
+  float steinhart;
+
+  steinhart = resistance / NOMINAL_RESISTANCE;
+
+  steinhart = log(steinhart);
+
+  steinhart /= B_COEFFICIENT;
+
+  steinhart += 1.0 /
+                (NOMINAL_TEMPERATURE + 273.15);
+
+  steinhart = 1.0 / steinhart;
+
+  steinhart -= 273.15;
+
+  Serial.print("Temperature: ");
+  Serial.println(steinhart);
+
+  return steinhart;
+}
+
+// ======================================================
+// MELODY FUNCTION
+// ======================================================
 
 void melody() {
 
@@ -67,6 +151,10 @@ void melody() {
   }
 }
 
+// ======================================================
+// DISCO MODE
+// ======================================================
+
 void discoMode() {
 
   int notes[] = {
@@ -94,39 +182,79 @@ void discoMode() {
   setRGB(0, 0, 0);
 }
 
+// ======================================================
+// SETUP
+// ======================================================
+
 void setup() {
 
   Serial.begin(115200);
 
+  // ======================================================
+  // PIN MODES
+  // ======================================================
+
   pinMode(LED_PIN, OUTPUT);
+
   pinMode(BUZZER_PIN, OUTPUT);
+
   pinMode(RELAY_PIN, OUTPUT);
 
+  pinMode(LDR_PIN, INPUT);
+
+  pinMode(THERMISTOR_PIN, INPUT);
+
   digitalWrite(LED_PIN, LOW);
+
   digitalWrite(RELAY_PIN, LOW);
 
+  // ======================================================
+  // RGB START
+  // ======================================================
+
   rgb.begin();
+
   rgb.show();
 
-  dht.begin();
+  // ======================================================
+  // WIFI CONNECT
+  // ======================================================
 
   WiFi.begin(ssid, password);
 
-  Serial.print("Connecting");
+  Serial.print("Connecting to WiFi");
 
   while (WiFi.status() != WL_CONNECTED) {
 
     delay(500);
+
     Serial.print(".");
   }
 
   Serial.println();
+
   Serial.println("WiFi Connected");
 
-  Serial.print("ESP32 IP: ");
+  Serial.print("ESP32 IP Address: ");
+
   Serial.println(WiFi.localIP());
 
+  // ======================================================
+  // ROOT
+  // ======================================================
+
+  server.on("/", []() {
+
+    server.send(
+      200,
+      "text/plain",
+      "NEXUS AI ESP32 SERVER RUNNING"
+    );
+  });
+
+  // ======================================================
   // LIGHT ON
+  // ======================================================
 
   server.on("/lighton", []() {
 
@@ -139,7 +267,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // LIGHT OFF
+  // ======================================================
 
   server.on("/lightoff", []() {
 
@@ -152,7 +282,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // RGB RED
+  // ======================================================
 
   server.on("/rgbred", []() {
 
@@ -165,7 +297,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // RGB BLUE
+  // ======================================================
 
   server.on("/rgbblue", []() {
 
@@ -178,7 +312,24 @@ void setup() {
     );
   });
 
+  // ======================================================
+  // RGB GREEN
+  // ======================================================
+
+  server.on("/rgbgreen", []() {
+
+    setRGB(0, 255, 0);
+
+    server.send(
+      200,
+      "text/plain",
+      "RGB GREEN"
+    );
+  });
+
+  // ======================================================
   // RGB OFF
+  // ======================================================
 
   server.on("/rgboff", []() {
 
@@ -191,7 +342,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // RELAY ON
+  // ======================================================
 
   server.on("/relayon", []() {
 
@@ -204,7 +357,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // RELAY OFF
+  // ======================================================
 
   server.on("/relayoff", []() {
 
@@ -217,7 +372,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // BUZZER ON
+  // ======================================================
 
   server.on("/buzzeron", []() {
 
@@ -230,7 +387,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // BUZZER OFF
+  // ======================================================
 
   server.on("/buzzeroff", []() {
 
@@ -243,7 +402,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // MELODY
+  // ======================================================
 
   server.on("/melody", []() {
 
@@ -252,11 +413,13 @@ void setup() {
     server.send(
       200,
       "text/plain",
-      "MELODY"
+      "MELODY PLAYED"
     );
   });
 
+  // ======================================================
   // DISCO MODE
+  // ======================================================
 
   server.on("/disco", []() {
 
@@ -269,42 +432,24 @@ void setup() {
     );
   });
 
+  // ======================================================
   // TEMPERATURE
+  // ======================================================
 
   server.on("/temperature", []() {
 
-    float t = dht.readTemperature();
-
-    int retry = 0;
-
-    while (isnan(t) && retry < 5) {
-
-      delay(1000);
-
-      t = dht.readTemperature();
-
-      retry++;
-    }
-
-    if (isnan(t)) {
-
-      server.send(
-        200,
-        "text/plain",
-        "TEMP_ERROR"
-      );
-
-      return;
-    }
+    float temperature = readTemperature();
 
     server.send(
       200,
       "text/plain",
-      String(t)
+      String(temperature, 1)
     );
   });
 
+  // ======================================================
   // LDR
+  // ======================================================
 
   server.on("/ldr", []() {
 
@@ -317,7 +462,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // SMART MODE ON
+  // ======================================================
 
   server.on("/smartmode", []() {
 
@@ -330,7 +477,9 @@ void setup() {
     );
   });
 
+  // ======================================================
   // SMART MODE OFF
+  // ======================================================
 
   server.on("/smartmodeoff", []() {
 
@@ -345,34 +494,51 @@ void setup() {
     );
   });
 
+  // ======================================================
+  // START SERVER
+  // ======================================================
+
   server.begin();
 
-  Serial.println("Server Started");
+  Serial.println("HTTP Server Started");
 }
+
+// ======================================================
+// LOOP
+// ======================================================
 
 void loop() {
 
   server.handleClient();
 
+  yield();
+
+  // ======================================================
   // SMART STREET LIGHT
+  // ======================================================
 
   if (smartMode) {
 
     int ldr = analogRead(LDR_PIN);
 
     Serial.print("LDR VALUE: ");
+
     Serial.println(ldr);
+
+    // DARK CONDITION
 
     if (ldr < 1500) {
 
       setRGB(255, 255, 255);
     }
 
+    // BRIGHT CONDITION
+
     else {
 
       setRGB(0, 0, 0);
     }
-
-    delay(200);
   }
+
+  delay(100);
 }

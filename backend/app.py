@@ -1,161 +1,616 @@
+from flask import Flask, render_template
+from flask import request, jsonify
 
-from flask import Flask, render_template, request, jsonify
 import requests
 import random
+import re
+
+from sentence_transformers import SentenceTransformer
+
+from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
 
-ESP32_IP = "http://10.61.103.174"   # CHANGE TO YOUR ESP32 IP
+# =========================================
+# ESP32 IP
+# =========================================
 
-# ----------------------------
-# SEND COMMAND TO ESP32
-# ----------------------------
-def send_command(cmd):
-    try:
-        r = requests.get(f"{ESP32_IP}/{cmd}", timeout=3)
-        return r.text
-    except:
-        return None
-# ----------------------------
-# CHAT RESPONSES
-# ----------------------------
-def ai_reply(command):
-    cmd = command.lower()
+ESP32_IP = "http://10.61.103.174"
 
-    # LIGHT ON
-    if any(x in cmd for x in ["light on", "turn on light", "turn on the light"]):
-        send_command("lighton")
-        return {
-            "title": "💡 LIGHT ON",
-            "message": "The room is glowing now ✨"
-        }
+# =========================================
+# LOAD AI MODEL
+# =========================================
 
-    # LIGHT OFF
-    elif any(x in cmd for x in ["light off", "turn off light", "turn off the light"]):
-        send_command("lightoff")
-        return {
-            "title": "🌑 LIGHT OFF",
-            "message": "Lights turned off successfully 🌙"
-        }
+print("Loading AI Model...")
 
-    # RGB RED
-    elif any(x in cmd for x in ["rgb red", "set rgb red", "red light"]):
-        send_command("rgbred")
-        return {
-            "title": "🔴 RGB RED",
-            "message": "RGB changed to RED ❤️"
-        }
+model = SentenceTransformer(
+    'all-MiniLM-L6-v2'
+)
 
-    # RGB BLUE
-    elif any(x in cmd for x in ["rgb blue", "set rgb blue", "blue light"]):
-        send_command("rgbblue")
-        return {
-            "title": "🔵 RGB BLUE",
-            "message": "RGB changed to BLUE 💙"
-        }
-        # RGB OFF
-    elif any(x in cmd for x in ["rgb off", "turn off rgb", "switch off rgb"]):
-        send_command("rgboff")
-        return {
-            "title": "⚫ RGB OFF",
-            "message": "RGB LEDs are now OFF 🌑"
-        }
+print("AI Model Loaded")
 
-    # TEMPERATURE
-    elif any(x in cmd for x in ["temperature", "temp", "show temperature"]):
-        data = send_command("temp")
+# =========================================
+# INTENT TRAINING DATA
+# =========================================
 
-        if data:
-            return {
-                "title": "🌡️ TEMPERATURE",
-                "message": f"Current temperature is {data}°C"
-            }
+intent_examples = {
 
-        return {
-            "title": "⚠️ ERROR",
-            "message": "Could not read temperature sensor"
-        }
+    "light_on": [
 
-    # LDR
-    elif any(x in cmd for x in ["ldr", "light level", "check ldr"]):
-        data = send_command("ldr")
+        "turn on light",
+        "lights on",
+        "make room bright",
+        "its dark",
+        "i cannot see",
+        "too dark here",
+        "brighten the room",
+        "switch on lights",
+        "need more light",
+        "room is dark",
+        "enable lights"
+    ],
 
-        if data:
-            return {
-                "title": "☀️ LDR SENSOR",
-                "message": f"Current LDR value: {data}"
-            }
+    "light_off": [
 
-        return {
-            "title": "⚠️ ERROR",
-            "message": "Could not read LDR sensor"
-        }
-    # MELODY
-    elif any(x in cmd for x in ["music", "melody", "play melody", "play music"]):
-        send_command("melody")
-        return {
-            "title": "🎵 MELODY",
-            "message": "Playing a relaxing melody for you 🎶"
-        }
+        "turn off light",
+        "lights off",
+        "good night",
+        "make room dark",
+        "dim the room",
+        "i want sleep",
+        "switch off lights",
+        "disable lights",
+        "too bright",
+        "reduce brightness",
+        "room is bright"
+    ],
 
-    # RELAY ON
-    elif any(x in cmd for x in ["relay on", "turn on relay"]):
-        send_command("relayon")
-        return {
-            "title": "⚡ RELAY ON",
-            "message": "Relay switched ON successfully ⚡"
-        }
+    "play_music": [
 
-    # RELAY OFF
-    elif any(x in cmd for x in ["relay off", "turn off relay"]):
-        send_command("relayoff")
-        return {
-            "title": "⭕ RELAY OFF",
-            "message": "Relay switched OFF successfully"
-        }
+        "play music",
+        "i am bored",
+        "entertain me",
+        "play melody",
+        "music please",
+        "play song",
+        "i want music",
+        "make some sound",
+        "fun mode"
+    ],
 
-    # BUZZER ON
-    elif any(x in cmd for x in ["buzzer on", "alarm on"]):
-        send_command("buzzeron")
-        return {
-            "title": "🚨 BUZZER ON",
-            "message": "Alarm buzzer activated 🚨"
-        }
+    "disco_mode": [
 
-    # BUZZER OFF
-    elif any(x in cmd for x in ["buzzer off", "alarm off"]):
-        send_command("buzzeroff")
-        return {
-            "title": "🔕 BUZZER OFF",
-            "message": "Alarm buzzer turned OFF"
-        }
-    # SMART MODE
-    elif any(x in cmd for x in ["smart mode", "auto mode"]):
-        send_command("smartmode")
-        return {
-            "title": "🤖 SMART MODE",
-            "message": "Smart street light mode activated 🌃"
-        }
+        "disco",
+        "party mode",
+        "dance mode",
+        "club lights",
+        "celebration mode",
+        "lets dance",
+        "party time"
+    ],
 
-    return {
-        "title": "🤔 UNKNOWN COMMAND",
-        "message": "Try commands like light on, rgb red, melody, buzzer on"
+    "rgb_red": [
+
+        "red light",
+        "make room red",
+        "red ambience",
+        "red mood"
+    ],
+
+    "rgb_blue": [
+
+        "blue light",
+        "make room blue",
+        "blue ambience",
+        "cool blue"
+    ],
+
+    "rgb_green": [
+
+        "green light",
+        "make room green"
+    ],
+
+    "rgb_off": [
+
+        "turn off rgb",
+        "disable rgb",
+        "rgb off",
+        "remove ambient lights"
+    ],
+
+    "buzzer_on": [
+
+        "turn on alarm",
+        "alert me",
+        "activate buzzer",
+        "danger alert",
+        "wake me up",
+        "start alarm"
+    ],
+
+    "buzzer_off": [
+
+        "turn off alarm",
+        "disable buzzer",
+        "stop alert",
+        "alarm off"
+    ],
+
+    "smart_mode_on": [
+
+        "smart mode",
+        "automatic lighting",
+        "auto mode",
+        "enable smart mode"
+    ],
+
+    "smart_mode_off": [
+
+        "disable smart mode",
+        "turn off smart mode",
+        "stop smart lighting"
+    ],
+
+    "temperature": [
+
+        "temperature",
+        "how hot is it",
+        "current temperature",
+        "room temperature"
+    ],
+
+    "ldr": [
+
+        "ldr value",
+        "light level",
+        "brightness level"
+    ]
+}
+
+# =========================================
+# RESPONSES
+# =========================================
+
+responses = {
+
+    "light_on": [
+
+        "Lights turned on 💡",
+        "Brightness increased 🌟",
+        "Room illuminated successfully ✨"
+    ],
+
+    "light_off": [
+
+        "Lights turned off 🌑",
+        "Room dimmed successfully 😴",
+        "Good night mode activated 🌙"
+    ],
+
+    "play_music": [
+
+        "Playing melody 🎵",
+        "Enjoy the music 🎶",
+        "Starting entertainment mode ✨"
+    ],
+
+    "disco_mode": [
+
+        "Disco mode activated 🕺",
+        "Party lights enabled 🎉",
+        "Dance mode started 💃"
+    ],
+
+    "rgb_red": [
+
+        "Red ambience enabled ❤️",
+        "Room glowing red 🔴"
+    ],
+
+    "rgb_blue": [
+
+        "Blue ambience enabled 💙",
+        "Cool blue lighting activated 🔵"
+    ],
+
+    "rgb_green": [
+
+        "Green ambience activated 💚"
+    ],
+
+    "rgb_off": [
+
+        "Ambient lights turned off ⚫"
+    ],
+
+    "buzzer_on": [
+
+        "Alarm activated 🚨",
+        "Alert system enabled ⚠️"
+    ],
+
+    "buzzer_off": [
+
+        "Alarm disabled 🔕"
+    ],
+
+    "smart_mode_on": [
+
+        "Smart lighting enabled 🤖"
+    ],
+
+    "smart_mode_off": [
+
+        "Smart mode disabled 🛑"
+    ]
+}
+
+# =========================================
+# FUNCTION MAP
+# =========================================
+
+FUNCTIONS = {
+
+    "light_on": "lighton",
+    "light_off": "lightoff",
+
+    "play_music": "melody",
+
+    "disco_mode": "disco",
+
+    "rgb_red": "rgbred",
+    "rgb_blue": "rgbblue",
+    "rgb_green": "rgbgreen",
+    "rgb_off": "rgboff",
+
+    "buzzer_on": "buzzeron",
+    "buzzer_off": "buzzeroff",
+
+    "smart_mode_on": "smartmode",
+    "smart_mode_off": "smartmodeoff",
+
+    "temperature": "temperature",
+
+    "ldr": "ldr"
+}
+
+# =========================================
+# CREATE EMBEDDINGS
+# =========================================
+
+all_sentences = []
+all_intents = []
+
+for intent, examples in intent_examples.items():
+
+    for sentence in examples:
+
+        all_sentences.append(sentence)
+
+        all_intents.append(intent)
+
+sentence_embeddings = model.encode(
+    all_sentences
+)
+
+# =========================================
+# TEXT CLEANER
+# =========================================
+
+def clean_text(text):
+
+    text = text.lower()
+
+    fixes = {
+
+        "turn of": "turn off",
+        "trun": "turn",
+        "ligth": "light",
+        "alaram": "alarm",
+        "musci": "music"
     }
 
+    for wrong, correct in fixes.items():
+
+        text = text.replace(
+            wrong,
+            correct
+        )
+
+    return text
+
+# =========================================
+# SEND COMMAND
+# =========================================
+
+def send_command(command):
+
+    try:
+
+        response = requests.get(
+
+            f"{ESP32_IP}/{command}",
+
+            timeout=5
+        )
+
+        return response.text
+
+    except:
+
+        return None
+
+# =========================================
+# DETECT INTENT
+# =========================================
+
+def detect_intent(user_message):
+
+    msg = clean_text(user_message)
+
+    # =====================================
+    # RULE ENGINE
+    # =====================================
+
+    # DISCO
+
+    if any(x in msg for x in [
+
+        "disco",
+        "party",
+        "dance",
+        "club"
+    ]):
+
+        return "disco_mode"
+
+    # RGB COLORS
+
+    if "red" in msg:
+
+        if "off" in msg:
+
+            return "rgb_off"
+
+        return "rgb_red"
+
+    if "blue" in msg:
+
+        if "off" in msg:
+
+            return "rgb_off"
+
+        return "rgb_blue"
+
+    if "green" in msg:
+
+        return "rgb_green"
+
+    # SMART MODE
+
+    if "smart mode" in msg:
+
+        if "off" in msg:
+
+            return "smart_mode_off"
+
+        return "smart_mode_on"
+
+    # ALARM
+
+    if any(x in msg for x in [
+
+        "alarm",
+        "alert",
+        "buzzer"
+    ]):
+
+        if any(x in msg for x in [
+
+            "off",
+            "stop",
+            "disable"
+        ]):
+
+            return "buzzer_off"
+
+        return "buzzer_on"
+
+    # LIGHTS
+
+    if any(x in msg for x in [
+
+        "light",
+        "lights",
+        "bright",
+        "dark"
+    ]):
+
+        if any(x in msg for x in [
+
+            "off",
+            "dark",
+            "sleep",
+            "night",
+            "dim",
+            "dull"
+        ]):
+
+            return "light_off"
+
+        return "light_on"
+
+    # MUSIC
+
+    if any(x in msg for x in [
+
+        "music",
+        "melody",
+        "song",
+        "bored",
+        "entertain"
+    ]):
+
+        return "play_music"
+
+    # TEMPERATURE
+
+    if "temperature" in msg:
+
+        return "temperature"
+
+    # LDR
+
+    if "ldr" in msg:
+
+        return "ldr"
+
+    # =====================================
+    # AI SEMANTIC FALLBACK
+    # =====================================
+
+    user_embedding = model.encode([msg])
+
+    similarities = cosine_similarity(
+
+        user_embedding,
+
+        sentence_embeddings
+    )
+
+    best_index = similarities.argmax()
+
+    confidence = similarities[0][best_index]
+
+    detected_intent = all_intents[best_index]
+
+    print("\nCONFIDENCE:", confidence)
+
+    print("INTENT:", detected_intent)
+
+    if confidence < 0.55:
+
+        return "unknown"
+
+    return detected_intent
+
+# =========================================
+# GENERATE RESPONSE
+# =========================================
+
+def generate_response(intent):
+
+    if intent in responses:
+
+        return random.choice(
+            responses[intent]
+        )
+
+    return (
+        "Sorry, I could not "
+        "understand that."
+    )
+
+# =========================================
+# HOME
+# =========================================
 
 @app.route("/")
 def home():
-    return render_template("index.html")
 
+    return render_template(
+        "index.html"
+    )
+
+# =========================================
+# CHAT
+# =========================================
 
 @app.route("/chat", methods=["POST"])
 def chat():
+
     data = request.json
-    command = data.get("message")
 
-    response = ai_reply(command)
-    return jsonify(response)
+    user_message = data.get("message")
 
+    print("\nUSER:", user_message)
+
+    intent = detect_intent(
+        user_message
+    )
+
+    print("INTENT:", intent)
+
+    if intent == "unknown":
+
+        return jsonify({
+
+            "title": "NEXUS AI",
+
+            "message":
+            "Sorry, I could not understand that command."
+        })
+
+    command = FUNCTIONS[intent]
+
+    result = send_command(command)
+
+    # =====================================
+    # SENSOR RESPONSES
+    # =====================================
+
+    if intent == "temperature":
+
+        if result is None:
+
+            reply = (
+                "ESP32 is not responding."
+            )
+
+        elif result == "TEMP_ERROR":
+
+            reply = (
+                "Temperature sensor error."
+            )
+
+        else:
+
+            reply = (
+                f"Current temperature "
+                f"is {result}°C 🌡️"
+            )
+
+    elif intent == "ldr":
+
+        if result is None:
+
+            reply = (
+                "ESP32 is not responding."
+            )
+
+        else:
+
+            reply = (
+                f"Current LDR value "
+                f"is {result} ☀️"
+            )
+
+    else:
+
+        reply = generate_response(intent)
+
+    return jsonify({
+
+        "title": "NEXUS AI",
+
+        "message": reply
+    })
+
+# =========================================
+# RUN APP
+# =========================================
 
 if __name__ == "__main__":
+
     app.run(debug=True)

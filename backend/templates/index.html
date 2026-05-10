@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>NEXUS AI IoT</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
+
 *{
 margin:0;
 padding:0;
@@ -20,91 +24,129 @@ background:#020b16;
 color:#00e5ff;
 height:100vh;
 overflow:hidden;
+
 background-image:
-linear-gradient(rgba(0,255,255,0.08) 1px, transparent 1px),
-linear-gradient(90deg, rgba(0,255,255,0.08) 1px, transparent 1px);
+linear-gradient(rgba(0,255,255,0.06) 1px, transparent 1px),
+linear-gradient(90deg, rgba(0,255,255,0.06) 1px, transparent 1px);
+
 background-size:40px 40px;
+
 display:flex;
 justify-content:center;
 align-items:center;
 }
 
 .container{
+
 width:1000px;
-height:92vh;
-border:1px solid #00e5ff;
+height:94vh;
+
 background:#03111f;
-box-shadow:0 0 30px rgba(0,229,255,0.3);
-border-radius:10px;
+
+border:1px solid #00e5ff;
+
+border-radius:12px;
+
+box-shadow:
+0 0 30px rgba(0,229,255,0.25);
+
 padding:20px;
+
 display:flex;
 flex-direction:column;
 }
 
 .header{
+
 display:flex;
 justify-content:space-between;
 align-items:center;
-padding:15px;
+
+padding:18px;
+
 border:1px solid #00e5ff;
+
 margin-bottom:20px;
 }
 
 .logo{
 font-size:38px;
-letter-spacing:8px;
 font-weight:bold;
+letter-spacing:8px;
 }
 
 .status{
 font-size:14px;
-color:#7fffd4;
+font-weight:bold;
 }
 
 .buttons{
+
 display:grid;
-grid-template-columns:repeat(4,1fr);
+grid-template-columns:repeat(5,1fr);
+
 gap:12px;
+
 margin-bottom:20px;
 }
 
 .btn{
+
 background:#071d30;
+
 border:1px solid #00e5ff;
+
 color:#00e5ff;
+
 padding:15px;
-font-size:14px;
-cursor:pointer;
+
 border-radius:6px;
+
+font-size:13px;
+
+cursor:pointer;
+
 transition:0.3s;
 }
 
 .btn:hover{
+
 background:#00e5ff;
 color:#000;
+
 box-shadow:0 0 20px #00e5ff;
 }
 
 .chatbox{
+
 flex:1;
-border:1px solid #00e5ff;
-padding:15px;
+
 overflow-y:auto;
+
+border:1px solid #00e5ff;
+
+padding:15px;
+
 background:#010914;
 }
 
 .message{
+
 margin:12px 0;
+
 padding:14px;
-max-width:70%;
+
+max-width:75%;
+
 border-radius:10px;
-line-height:1.5;
+
+line-height:1.6;
 }
 
 .user{
 background:#3a170f;
 margin-left:auto;
-color:#ffb199;
+color:#ffceb3;
 }
 
 .bot{
@@ -112,39 +154,53 @@ background:#071d30;
 color:#dffcff;
 }
 
+.title{
+
+font-weight:bold;
+margin-bottom:6px;
+color:#00e5ff;
+}
+
 .input-area{
+
 display:flex;
 gap:10px;
+
 margin-top:15px;
 }
 
 input{
+
 flex:1;
-padding:15px;
+
+padding:16px;
+
 background:#02101d;
+
 border:1px solid #00e5ff;
-color:#fff;
-font-size:16px;
+
+color:white;
+
+font-size:15px;
+
 outline:none;
 }
 
 .send{
+
 padding:15px 30px;
+
 background:#00e676;
+
 border:none;
+
 font-weight:bold;
+
 cursor:pointer;
-font-size:16px;
 }
 
 .send:hover{
 opacity:0.85;
-}
-
-.title{
-font-weight:bold;
-margin-bottom:6px;
-color:#00e5ff;
 }
 
 @media(max-width:900px){
@@ -155,10 +211,13 @@ grid-template-columns:repeat(2,1fr);
 
 .container{
 width:95%;
+height:96vh;
 }
 
 }
+
 </style>
+
 </head>
 
 <body>
@@ -166,39 +225,76 @@ width:95%;
 <div class="container">
 
 <div class="header">
+
 <div class="logo">NEXUS</div>
-<div class="status">🟢 ESP32 CONNECTED</div>
+
+<div class="status" id="espStatus">
+🟡 CHECKING...
+</div>
+
 </div>
 
 <div class="buttons">
 
-<button class="btn" onclick="sendQuick('light on')">💡 LIGHT ON</button>
+<button class="btn" onclick="sendQuick('light on')">
+💡 LIGHT ON
+</button>
 
-<button class="btn" onclick="sendQuick('light off')">🌑 LIGHT OFF</button>
+<button class="btn" onclick="sendQuick('light off')">
+🌑 LIGHT OFF
+</button>
 
-<button class="btn" onclick="sendQuick('rgb red')">🔴 RGB RED</button>
+<button class="btn" onclick="sendQuick('dim light')">
+🌙 DIM LIGHT
+</button>
 
-<button class="btn" onclick="sendQuick('rgb blue')">🔵 RGB BLUE</button>
+<button class="btn" onclick="sendQuick('party mode')">
+🕺 PARTY
+</button>
 
-<button class="btn" onclick="sendQuick('rgb off')">⚫ RGB OFF</button>
+<button class="btn" onclick="sendQuick('rgb off')">
+⚫ RGB OFF
+</button>
 
-<button class="btn" onclick="sendQuick('temperature')">🌡️ TEMP</button>
+<button class="btn" onclick="sendQuick('play melody')">
+🎵 MELODY
+</button>
 
-<button class="btn" onclick="sendQuick('ldr')">☀️ LDR</button>
+<button class="btn" onclick="sendQuick('temperature')">
+🌡️ TEMP
+</button>
 
-<button class="btn" onclick="sendQuick('melody')">🎵 MELODY</button>
+<button class="btn" onclick="sendQuick('ldr value')">
+☀️ LDR
+</button>
 
-<button class="btn" onclick="sendQuick('relay on')">⚡ RELAY ON</button>
+<button class="btn" onclick="sendQuick('relay on')">
+⚡ RELAY ON
+</button>
 
-<button class="btn" onclick="sendQuick('relay off')">⭕ RELAY OFF</button>
+<button class="btn" onclick="sendQuick('relay off')">
+⭕ RELAY OFF
+</button>
 
-<button class="btn" onclick="sendQuick('buzzer on')">🚨 BUZZER ON</button>
+<button class="btn" onclick="sendQuick('buzzer on')">
+🚨 BUZZER
+</button>
 
-<button class="btn" onclick="sendQuick('buzzer off')">🔕 BUZZER OFF</button>
+<button class="btn" onclick="sendQuick('buzzer off')">
+🔕 SILENT
+</button>
 
-<button class="btn" onclick="sendQuick('smart mode')">🤖 SMART MODE</button>
+<button class="btn" onclick="sendQuick('smart mode')">
+🤖 SMART
+</button>
 
-<button class="btn" onclick="sendQuick('smart mode off')">🛑 SMART OFF</button>
+<button class="btn" onclick="sendQuick('disable smart mode')">
+🛑 SMART OFF
+</button>
+
+<button class="btn" onclick="sendQuick('white light')">
+⚪ WHITE
+</button>
 
 </div>
 
@@ -210,13 +306,14 @@ width:95%;
 
 System initialized successfully 🚀<br><br>
 
-Type natural commands like:<br><br>
+Try natural commands like:<br><br>
 
-• turn on the light<br>
-• play music<br>
-• rgb red<br>
-• buzzer on<br>
-• smart mode off
+• turn room red<br>
+• make lights purple<br>
+• cyan ambient light<br>
+• dim night lamp<br>
+• party mode<br>
+• smart mode
 
 </div>
 
@@ -224,9 +321,11 @@ Type natural commands like:<br><br>
 
 <div class="input-area">
 
-<input type="text"
+<input
+type="text"
 id="message"
-placeholder="Speak naturally — 'turn on the light'">
+placeholder="Type naturally — 'make room blue'"
+>
 
 <button class="send" onclick="sendMessage()">
 SEND →
@@ -285,9 +384,9 @@ async function sendMessage() {
         const data = await response.json();
 
         addMessage(
-            data.message,
+            data.reply,
             "bot",
-            data.title
+            "NEXUS AI"
         );
 
     }
@@ -295,9 +394,9 @@ async function sendMessage() {
     catch(err){
 
         addMessage(
-            "Network error — could not reach server.",
+            "Server connection failed.",
             "bot",
-            "⚠️ ERROR"
+            "ERROR"
         );
     }
 }
@@ -309,15 +408,55 @@ function sendQuick(command){
     sendMessage();
 }
 
-const input = document.getElementById("message");
-
-input.addEventListener("keypress", function(e){
+document.getElementById("message")
+.addEventListener("keypress", function(e){
 
     if(e.key === "Enter"){
         sendMessage();
     }
 
 });
+
+async function checkESP32Status() {
+
+    const statusBox =
+    document.getElementById("espStatus");
+
+    try {
+
+        const res = await fetch("/status");
+
+        const data = await res.json();
+
+        if(data.status === "online"){
+
+            statusBox.innerHTML =
+            "🟢 ESP32 CONNECTED";
+
+            statusBox.style.color = "#7CFF7C";
+
+        } else {
+
+            statusBox.innerHTML =
+            "🔴 ESP32 OFFLINE";
+
+            statusBox.style.color = "#ff4d4d";
+        }
+
+    }
+
+    catch(err){
+
+        statusBox.innerHTML =
+        "🔴 SERVER ERROR";
+
+        statusBox.style.color = "#ff4d4d";
+    }
+}
+
+setInterval(checkESP32Status, 3000);
+
+checkESP32Status();
 
 </script>
 

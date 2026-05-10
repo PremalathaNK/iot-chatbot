@@ -7,8 +7,8 @@
 // WIFI CONFIG
 // ======================================================
 
-const char* ssid = "YOUR_WIFI";
-const char* password = "PASSWORD";
+const char* ssid = "vivoT2x5G";
+const char* password = "prema123";
 
 // ======================================================
 // WEB SERVER
@@ -69,7 +69,7 @@ void setRGB(int r, int g, int b) {
 }
 
 // ======================================================
-// THERMISTOR TEMPERATURE FUNCTION
+// TEMPERATURE FUNCTION
 // ======================================================
 
 float readTemperature() {
@@ -79,7 +79,7 @@ float readTemperature() {
   Serial.print("ADC Value: ");
   Serial.println(adcValue);
 
-  // Avoid invalid ADC values
+  // Prevent invalid readings
   if (adcValue <= 0 || adcValue >= 4095) {
     return 0;
   }
@@ -90,7 +90,7 @@ float readTemperature() {
   const float NOMINAL_TEMPERATURE = 25.0;
   const float B_COEFFICIENT = 3950.0;
 
-  // Calculate resistance
+  // Resistance calculation
   float resistance =
     SERIES_RESISTOR *
     ((4095.0 / adcValue) - 1.0);
@@ -152,7 +152,7 @@ void melody() {
 }
 
 // ======================================================
-// DISCO MODE
+// PARTY MODE
 // ======================================================
 
 void discoMode() {
@@ -232,11 +232,9 @@ void setup() {
   }
 
   Serial.println();
-
   Serial.println("WiFi Connected");
 
   Serial.print("ESP32 IP Address: ");
-
   Serial.println(WiFi.localIP());
 
   // ======================================================
@@ -251,6 +249,19 @@ void setup() {
       "NEXUS AI ESP32 SERVER RUNNING"
     );
   });
+  // ======================================================
+// PING ROUTE
+// ======================================================
+
+server.on("/ping", []() {
+
+    server.send(
+      200,
+      "text/plain",
+      "pong"
+    );
+
+});
 
   // ======================================================
   // LIGHT ON
@@ -298,6 +309,21 @@ void setup() {
   });
 
   // ======================================================
+  // RGB GREEN
+  // ======================================================
+
+  server.on("/rgbgreen", []() {
+
+    setRGB(0, 255, 0);
+
+    server.send(
+      200,
+      "text/plain",
+      "RGB GREEN"
+    );
+  });
+
+  // ======================================================
   // RGB BLUE
   // ======================================================
 
@@ -313,17 +339,107 @@ void setup() {
   });
 
   // ======================================================
-  // RGB GREEN
+  // RGB PURPLE
   // ======================================================
 
-  server.on("/rgbgreen", []() {
+  server.on("/rgbpurple", []() {
 
-    setRGB(0, 255, 0);
+    setRGB(255, 0, 255);
 
     server.send(
       200,
       "text/plain",
-      "RGB GREEN"
+      "RGB PURPLE"
+    );
+  });
+
+  // ======================================================
+  // RGB PINK
+  // ======================================================
+
+  server.on("/rgbpink", []() {
+
+    setRGB(255, 20, 147);
+
+    server.send(
+      200,
+      "text/plain",
+      "RGB PINK"
+    );
+  });
+
+  // ======================================================
+  // RGB YELLOW
+  // ======================================================
+
+  server.on("/rgbyellow", []() {
+
+    setRGB(255, 255, 0);
+
+    server.send(
+      200,
+      "text/plain",
+      "RGB YELLOW"
+    );
+  });
+
+  // ======================================================
+  // RGB CYAN
+  // ======================================================
+
+  server.on("/rgbcyan", []() {
+
+    setRGB(0, 255, 255);
+
+    server.send(
+      200,
+      "text/plain",
+      "RGB CYAN"
+    );
+  });
+
+  // ======================================================
+  // RGB WHITE
+  // ======================================================
+
+  server.on("/rgbwhite", []() {
+
+    setRGB(255, 255, 255);
+
+    server.send(
+      200,
+      "text/plain",
+      "RGB WHITE"
+    );
+  });
+
+  // ======================================================
+  // RGB ORANGE
+  // ======================================================
+
+  server.on("/rgborange", []() {
+
+    setRGB(255, 80, 0);
+
+    server.send(
+      200,
+      "text/plain",
+      "RGB ORANGE"
+    );
+  });
+
+  // ======================================================
+  // DIM LIGHT
+  // ======================================================
+
+  server.on("/dim", []() {
+
+    setRGB(20, 20, 20);
+
+    server.send(
+      200,
+      "text/plain",
+      "DIM LIGHT"
     );
   });
 
@@ -418,7 +534,7 @@ void setup() {
   });
 
   // ======================================================
-  // DISCO MODE
+  // PARTY MODE
   // ======================================================
 
   server.on("/disco", []() {
@@ -448,7 +564,7 @@ void setup() {
   });
 
   // ======================================================
-  // LDR
+  // LDR VALUE
   // ======================================================
 
   server.on("/ldr", []() {
@@ -514,7 +630,7 @@ void loop() {
   yield();
 
   // ======================================================
-  // SMART STREET LIGHT
+  // SMART STREET LIGHT MODE
   // ======================================================
 
   if (smartMode) {
@@ -522,17 +638,16 @@ void loop() {
     int ldr = analogRead(LDR_PIN);
 
     Serial.print("LDR VALUE: ");
-
     Serial.println(ldr);
 
-    // DARK CONDITION
+    // DARK
 
     if (ldr < 1500) {
 
       setRGB(255, 255, 255);
     }
 
-    // BRIGHT CONDITION
+    // BRIGHT
 
     else {
 

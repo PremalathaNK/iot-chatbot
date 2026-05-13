@@ -36,6 +36,7 @@ VALID_INTENTS = {
     "melody",
 
     "temperature",
+    "humidity",
     "ldr",
 
     "smart_on",
@@ -45,13 +46,35 @@ VALID_INTENTS = {
 }
 
 # =====================================================
+# RGB COLORS
+# =====================================================
+
+RGB_COLORS = {
+
+    "red",
+    "green",
+    "blue",
+    "purple",
+    "pink",
+    "yellow",
+    "cyan",
+    "white",
+    "orange"
+}
+
+# =====================================================
 # SESSION MEMORY
 # =====================================================
 
 SESSION_MEMORY = {
+
     "last_intent": None,
+    "last_rgb": None,
+
+    "rgb_active": False,
+    "main_light_active": False,
     "smart_mode": False,
-    "last_light_mode": None
+    "buzzer_active": False
 }
 
 # =====================================================
@@ -59,22 +82,28 @@ SESSION_MEMORY = {
 # =====================================================
 
 SYSTEM_PROMPT = """
-You are NEXUS AI Smart IoT Assistant.
+ROLE:
+You are NEXUS AI.
 
-You control REAL IoT hardware connected to an ESP32.
+You are connected to REAL ESP32 IoT hardware.
 
-Your job:
-- Understand natural human language
-- Detect user intention
-- Control hardware correctly
-- Be conversational and friendly
-- Never invent fake sensor values
-- Never pretend hardware executed if it failed
+You control:
+- RGB LEDs
+- Main onboard light
+- Relay
+- Buzzer
+- Sensors
+- Smart mode
+
+You are intelligent, natural and conversational.
+
+==================================================
 
 AVAILABLE INTENTS:
 
 light_on
 light_off
+
 red
 green
 blue
@@ -84,160 +113,160 @@ yellow
 cyan
 white
 orange
+
 dim
 rgb_off
+
 relay_on
 relay_off
+
 buzzer_on
 buzzer_off
+
 party
 melody
+
 temperature
+humidity
 ldr
+
 smart_on
 smart_off
+
 none
 
-VERY IMPORTANT RULES:
+==================================================
 
-- Return ONLY valid JSON
-- Never return markdown
-- Never explain JSON
-- Never create new intent names
-- Use ONLY the exact intents listed above
+VERY IMPORTANT RGB RULES:
+
+ANY COLOR REQUEST means RGB LEDs ONLY.
 
 Examples:
 
-User: make room pink
-{
-  "intent": "pink",
-  "response": "Sure 🌸 Changing the room lights to pink."
-}
+turn on blue light
+turn room pink
+make room yellow
+orange ambience
+cyan light
+purple glow
+red rgb
 
-User: turn off smart mode
-{
-  "intent": "smart_off",
-  "response": "Okay 🛑 Disabling smart mode now."
-}
+ALL MUST MAP TO RGB COLORS.
 
-User: play music
-{
-  "intent": "melody",
-  "response": "Alright 🎵 Playing a melody for you."
-}
+NEVER MAP COLORS TO:
+light_on
 
-User: i am bored
-{
-  "intent": "party",
-  "response": "Let's make the room more fun 🕺"
-}
+NEVER TURN ON MAIN LIGHT FOR COLORS.
 
-User: what is the temperature
-{
-  "intent": "temperature",
-  "response": "Checking the current temperature 🌡️"
-}
+==================================================
 
-User: hello
-{
-  "intent": "none",
-  "response": "Hello 👋 How can I help you today?"
-}
+MAIN LIGHT RULES:
 
-FINAL OUTPUT FORMAT:
+ONLY use:
+light_on
+light_off
+
+IF user CLEARLY says:
+- main light
+- room light
+- onboard light
+- normal light
+- bulb
+- tube light
+
+==================================================
+
+TURN OFF CONTEXT RULES:
+
+After RGB:
+turn off
+→ rgb_off
+
+After buzzer:
+turn off
+→ buzzer_off
+
+After smart mode:
+turn off
+→ smart_off
+
+After main light:
+turn off
+→ light_off
+
+==================================================
+
+DIM RULES:
+
+Words like:
+cozy
+dim
+sleep
+soft
+night ambience
+
+→ dim
+
+==================================================
+
+SENSOR RULES:
+
+brightness
+light level
+ldr
+brightness around me
+how bright
+
+→ ldr
+
+temperature
+how hot
+heat
+
+→ temperature
+
+humidity
+moisture
+
+→ humidity
+
+==================================================
+
+CHAT RULES:
+
+hello
+hi
+how are you
+good morning
+thanks
+okay
+
+→ none
+
+==================================================
+
+CRITICAL RULES:
+
+NEVER:
+- hallucinate hardware
+- change RGB into main light
+- randomly change colors
+- invent unsupported intents
+
+If uncertain:
+intent = none
+
+==================================================
+
+OUTPUT FORMAT:
+
+Return ONLY valid JSON.
 
 {
-  "intent": "exact_intent_name",
+  "intent": "valid_intent",
   "response": "natural conversational response"
 }
 """
-
-# =====================================================
-# CONTEXT OVERRIDE
-# =====================================================
-
-def contextual_intent(message: str):
-
-    text = message.lower()
-
-    # =================================================
-    # DIM LIGHTING
-    # =================================================
-
-    if any(x in text for x in [
-
-        "dim light",
-        "dim lights",
-        "dimmer",
-        "sleep light",
-        "night lamp",
-        "soft light",
-        "low light",
-        "i am sleeping",
-        "going to sleep",
-        "sleep now"
-
-    ]):
-        return "dim"
-
-    # =================================================
-    # TOO BRIGHT
-    # =================================================
-
-    if any(x in text for x in [
-
-        "too bright",
-        "very bright",
-        "make it dark",
-        "hurting my eyes"
-
-    ]):
-        return "light_off"
-
-    # =================================================
-    # TOO DARK
-    # =================================================
-
-    if any(x in text for x in [
-
-        "too dark",
-        "cannot see",
-        "not able to see",
-        "need light",
-        "it is dark"
-
-    ]):
-        return "light_on"
-
-    # =================================================
-    # MUSIC
-    # =================================================
-
-    if any(x in text for x in [
-
-        "play music",
-        "music",
-        "song"
-
-    ]):
-        return "melody"
-
-    # =================================================
-    # PANIC / EMERGENCY
-    # =================================================
-
-    if any(x in text for x in [
-
-        "panic",
-        "emergency",
-        "danger",
-        "alarm",
-        "siren"
-
-    ]):
-        return "buzzer_on"
-
-    return None
 
 # =====================================================
 # ASK MODEL
@@ -245,9 +274,24 @@ def contextual_intent(message: str):
 
 async def ask_model(message: str):
 
+    memory = f"""
+
+LAST_INTENT = {SESSION_MEMORY['last_intent']}
+LAST_RGB = {SESSION_MEMORY['last_rgb']}
+RGB_ACTIVE = {SESSION_MEMORY['rgb_active']}
+MAIN_LIGHT_ACTIVE = {SESSION_MEMORY['main_light_active']}
+BUZZER_ACTIVE = {SESSION_MEMORY['buzzer_active']}
+SMART_MODE = {SESSION_MEMORY['smart_mode']}
+
+"""
+
     payload = {
+
         "model": settings.MODEL_NAME,
-        "prompt": f"{SYSTEM_PROMPT}\nUser: {message}",
+
+        "prompt":
+        f"{SYSTEM_PROMPT}\n{memory}\nUser: {message}",
+
         "stream": False
     }
 
@@ -268,18 +312,17 @@ async def ask_model(message: str):
 
 def extract_json(text: str):
 
-    start = text.find("{")
-    end = text.rfind("}")
-
-    if start == -1 or end == -1:
-        return None
-
     try:
+
+        start = text.find("{")
+        end = text.rfind("}")
+
+        if start == -1 or end == -1:
+            return None
 
         return json.loads(text[start:end+1])
 
     except:
-
         return None
 
 # =====================================================
@@ -295,21 +338,15 @@ def normalize_intent(intent: str):
 
     aliases = {
 
-        "turn_on_light": "light_on",
         "lights_on": "light_on",
-
-        "turn_off_light": "light_off",
         "lights_off": "light_off",
 
-        "panic_mode": "buzzer_on",
+        "rgboff": "rgb_off",
+
         "alarm": "buzzer_on",
-
-        "mute_alarm": "buzzer_off",
-
-        "sleep_mode": "dim",
+        "alarm_off": "buzzer_off",
 
         "music": "melody",
-
         "disco": "party"
     }
 
@@ -322,6 +359,268 @@ def normalize_intent(intent: str):
     return intent
 
 # =====================================================
+# SMART TURN OFF
+# =====================================================
+
+def smart_turn_off():
+
+    if SESSION_MEMORY["buzzer_active"]:
+        return "buzzer_off"
+
+    if SESSION_MEMORY["smart_mode"]:
+        return "smart_off"
+
+    if SESSION_MEMORY["rgb_active"]:
+        return "rgb_off"
+
+    if SESSION_MEMORY["main_light_active"]:
+        return "light_off"
+
+    return "rgb_off"
+
+# =====================================================
+# DIRECT RULE ENGINE
+# =====================================================
+
+def direct_command(message: str):
+
+    text = message.lower().strip()
+
+    # =================================================
+    # TURN OFF
+    # =================================================
+
+    if text in [
+
+        "turn off",
+        "switch off",
+        "off",
+        "disable",
+        "turn it off"
+
+    ]:
+
+        return smart_turn_off()
+
+    # =================================================
+    # RGB OFF
+    # =================================================
+
+    if any(x in text for x in [
+
+        "rgb off",
+        "turn off rgb",
+        "switch off rgb"
+
+    ]):
+
+        return "rgb_off"
+
+    # =================================================
+    # MAIN LIGHT
+    # =================================================
+
+    if any(x in text for x in [
+
+        "main light",
+        "room light",
+        "onboard light",
+        "normal light",
+        "bulb",
+        "tube light"
+
+    ]):
+
+        if any(x in text for x in [
+
+            "turn on",
+            "switch on",
+            "enable"
+
+        ]):
+
+            return "light_on"
+
+        if any(x in text for x in [
+
+            "turn off",
+            "switch off",
+            "disable"
+
+        ]):
+
+            return "light_off"
+
+    # =================================================
+    # RGB COLORS
+    # =================================================
+
+    if "red" in text:
+        return "red"
+
+    if "green" in text:
+        return "green"
+
+    if "blue" in text:
+        return "blue"
+
+    if "purple" in text:
+        return "purple"
+
+    if "pink" in text:
+        return "pink"
+
+    if "yellow" in text:
+        return "yellow"
+
+    if "cyan" in text:
+        return "cyan"
+
+    if "white" in text and "main" not in text:
+        return "white"
+
+    if "orange" in text:
+        return "orange"
+
+    # =================================================
+    # DIM
+    # =================================================
+
+    if any(x in text for x in [
+
+        "dim",
+        "cozy",
+        "sleep",
+        "night",
+        "soft light"
+
+    ]):
+
+        return "dim"
+
+    # =================================================
+    # PARTY
+    # =================================================
+
+    if any(x in text for x in [
+
+        "party",
+        "dance",
+        "vibe"
+
+    ]):
+
+        return "party"
+
+    # =================================================
+    # MELODY
+    # =================================================
+
+    if any(x in text for x in [
+
+        "music",
+        "song",
+        "melody"
+
+    ]):
+
+        return "melody"
+
+    # =================================================
+    # BUZZER
+    # =================================================
+
+    if any(x in text for x in [
+
+        "buzzer on",
+        "alarm",
+        "danger",
+        "emergency"
+
+    ]):
+
+        return "buzzer_on"
+
+    if any(x in text for x in [
+
+        "buzzer off",
+        "stop buzzer"
+
+    ]):
+
+        return "buzzer_off"
+
+    # =================================================
+    # RELAY
+    # =================================================
+
+    if "relay on" in text:
+        return "relay_on"
+
+    if "relay off" in text:
+        return "relay_off"
+
+    # =================================================
+    # TEMPERATURE
+    # =================================================
+
+    if any(x in text for x in [
+
+        "temperature",
+        "how hot",
+        "heat"
+
+    ]):
+
+        return "temperature"
+
+    # =================================================
+    # HUMIDITY
+    # =================================================
+
+    if "humidity" in text:
+        return "humidity"
+
+    # =================================================
+    # LDR
+    # =================================================
+
+    if any(x in text for x in [
+
+        "brightness",
+        "ldr",
+        "light level",
+        "how bright"
+
+    ]):
+
+        return "ldr"
+
+    # =================================================
+    # SMART MODE
+    # =================================================
+
+    if any(x in text for x in [
+
+        "smart mode on",
+        "enable smart mode"
+
+    ]):
+
+        return "smart_on"
+
+    if any(x in text for x in [
+
+        "smart mode off",
+        "disable smart mode"
+
+    ]):
+
+        return "smart_off"
+
+    return None
+
+# =====================================================
 # MAIN PROCESSOR
 # =====================================================
 
@@ -329,124 +628,48 @@ async def process_message(message: str):
 
     try:
 
-        lower = message.lower()
-
         # =================================================
-        # CONTEXTUAL OVERRIDE FIRST
+        # DIRECT RULE ENGINE FIRST
         # =================================================
 
-        forced_intent = contextual_intent(message)
+        direct = direct_command(message)
 
-        if forced_intent:
+        if direct:
 
-            result = await execute_command(forced_intent)
+            intent = direct
+            ai_reply = None
 
-            if result["success"]:
+        else:
 
-                responses = {
+            raw = await ask_model(message)
 
-                    "dim":
-                    "Alright 🌙 Setting the room to a soft dim light for comfort.",
+            parsed = extract_json(raw)
 
-                    "light_on":
-                    "It's pretty dark around you — turning the lights on now 💡",
-
-                    "light_off":
-                    "Got it 🌑 Reducing the brightness by turning the lights off.",
-
-                    "melody":
-                    "Alright 🎵 Playing a melody for you.",
-
-                    "buzzer_on":
-                    "Emergency alarm activated 🚨"
-                }
+            if not parsed:
 
                 return {
                     "reply":
-                    responses.get(
-                        forced_intent,
-                        "Done"
-                    )
+                    "I couldn't understand that properly."
                 }
 
-            return {
-                "reply":
-                "ESP32 communication failed"
-            }
+            intent = normalize_intent(
+                parsed.get("intent")
+            )
+
+            ai_reply = parsed.get(
+                "response",
+                "Done"
+            )
 
         # =================================================
-        # GENERIC TURN OFF HANDLING
-        # =================================================
-
-        if lower in [
-            "turn off",
-            "switch off",
-            "disable it"
-        ]:
-
-            if SESSION_MEMORY["smart_mode"]:
-
-                intent = "smart_off"
-
-            else:
-
-                intent = "rgb_off"
-
-            result = await execute_command(intent)
-
-            if result["success"]:
-
-                if intent == "smart_off":
-
-                    SESSION_MEMORY["smart_mode"] = False
-
-                    return {
-                        "reply":
-                        "Okay 🛑 Smart mode has been disabled."
-                    }
-
-                return {
-                    "reply":
-                    "Alright ⚫ Turning off the lights."
-                }
-
-            return {
-                "reply":
-                "ESP32 communication failed"
-            }
-
-        # =================================================
-        # ASK AI MODEL
-        # =================================================
-
-        raw = await ask_model(message)
-
-        parsed = extract_json(raw)
-
-        if not parsed:
-
-            return {
-                "reply":
-                "AI response parsing failed"
-            }
-
-        intent = normalize_intent(
-            parsed.get("intent", "none")
-        )
-
-        ai_reply = parsed.get(
-            "response",
-            "Done"
-        )
-
-        # =================================================
-        # NO HARDWARE ACTION
+        # CHAT ONLY
         # =================================================
 
         if intent == "none":
 
             return {
-                "reply": ai_reply
+                "reply":
+                ai_reply or "Hello 👋"
             }
 
         # =================================================
@@ -455,11 +678,14 @@ async def process_message(message: str):
 
         result = await execute_command(intent)
 
+        print(f"\nINTENT: {intent}")
+        print(f"RESULT: {result}")
+
         if not result["success"]:
 
             return {
                 "reply":
-                "ESP32 communication failed"
+                f"ESP32 ERROR: {result['response']}"
             }
 
         # =================================================
@@ -468,31 +694,34 @@ async def process_message(message: str):
 
         SESSION_MEMORY["last_intent"] = intent
 
+        if intent in RGB_COLORS:
+
+            SESSION_MEMORY["rgb_active"] = True
+            SESSION_MEMORY["last_rgb"] = intent
+
+        if intent == "rgb_off":
+            SESSION_MEMORY["rgb_active"] = False
+
+        if intent == "light_on":
+            SESSION_MEMORY["main_light_active"] = True
+
+        if intent == "light_off":
+            SESSION_MEMORY["main_light_active"] = False
+
+        if intent == "buzzer_on":
+            SESSION_MEMORY["buzzer_active"] = True
+
+        if intent == "buzzer_off":
+            SESSION_MEMORY["buzzer_active"] = False
+
         if intent == "smart_on":
             SESSION_MEMORY["smart_mode"] = True
 
         if intent == "smart_off":
             SESSION_MEMORY["smart_mode"] = False
 
-        if intent in [
-
-            "red",
-            "green",
-            "blue",
-            "purple",
-            "pink",
-            "yellow",
-            "cyan",
-            "white",
-            "orange",
-            "dim"
-
-        ]:
-
-            SESSION_MEMORY["last_light_mode"] = intent
-
         # =================================================
-        # REAL SENSOR VALUES
+        # SENSOR RESPONSES
         # =================================================
 
         if intent == "temperature":
@@ -502,86 +731,96 @@ async def process_message(message: str):
                 f"Current temperature is {result['response']} °C 🌡️"
             }
 
+        if intent == "humidity":
+
+            return {
+                "reply":
+                f"Current humidity is {result['response']} % 💧"
+            }
+
         if intent == "ldr":
 
             return {
                 "reply":
-                f"Current brightness sensor value is {result['response']} ☀️"
+                f"Current brightness level is {result['response']} ☀️"
             }
 
         # =================================================
-        # FRIENDLY RESPONSES
+        # HARDWARE RESPONSES
         # =================================================
 
         responses = {
 
             "light_on":
-            "Sure 💡 Turning the lights on.",
+            "Main light turned on 💡",
 
             "light_off":
-            "Okay 🌑 Turning the lights off.",
+            "Main light turned off 🌑",
 
-            "dim":
-            "Alright 🌙 Dimming the lights for a softer atmosphere.",
+            "red":
+            "Red RGB light turned on 🔴",
 
-            "party":
-            "Party mode activated 🕺🎉 Enjoy the vibe!",
+            "green":
+            "Green RGB light turned on 🟢",
 
-            "melody":
-            "Playing a melody for you 🎵",
+            "blue":
+            "Blue RGB light turned on 🔵",
 
-            "buzzer_on":
-            "Emergency buzzer activated 🚨",
+            "purple":
+            "Purple RGB light turned on 🟣",
 
-            "buzzer_off":
-            "Alarm silenced 🔕",
+            "pink":
+            "Pink RGB light turned on 🌸",
 
-            "smart_on":
-            "Smart mode enabled 🤖",
+            "yellow":
+            "Yellow RGB light turned on 💛",
 
-            "smart_off":
-            "Smart mode disabled 🛑",
+            "cyan":
+            "Cyan RGB light turned on 💠",
+
+            "orange":
+            "Orange RGB light turned on 🟠",
+
+            "white":
+            "White RGB light turned on ⚪",
 
             "rgb_off":
             "RGB lighting turned off ⚫",
 
-            "red":
-            "The room is glowing red 🔴",
+            "dim":
+            "Dim ambience activated 🌙",
 
-            "blue":
-            "Switching the room to blue 🔵",
+            "party":
+            "Party mode activated 🕺🎉",
 
-            "green":
-            "Setting the room lights to green 🟢",
-
-            "pink":
-            "The room now has a beautiful pink glow 🌸",
-
-            "white":
-            "Changing the room lighting to white ⚪",
-
-            "purple":
-            "Purple lighting enabled 🟣",
-
-            "yellow":
-            "Yellow ambient lighting enabled 🟡",
-
-            "cyan":
-            "Cyan lighting activated 💠",
-
-            "orange":
-            "Orange mood lighting enabled 🟠",
+            "melody":
+            "Playing melody 🎵",
 
             "relay_on":
             "Relay switched ON ⚡",
 
             "relay_off":
-            "Relay switched OFF ⭕"
+            "Relay switched OFF ⭕",
+
+            "buzzer_on":
+            "Buzzer activated 🚨",
+
+            "buzzer_off":
+            "Buzzer turned off 🔕",
+
+            "smart_on":
+            "Smart mode enabled 🤖",
+
+            "smart_off":
+            "Smart mode disabled 🛑"
         }
 
         return {
             "reply":
-            responses.get(intent, ai_reply)
+            responses.get(
+                intent,
+                ai_reply or "Done"
+            )
         }
 
     except Exception as e:
